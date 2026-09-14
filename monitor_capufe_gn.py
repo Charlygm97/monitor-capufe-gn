@@ -14,13 +14,10 @@ sin previo aviso. Este script esta escrito para fallar de forma visible
 notar si X lo bloqueo y hay que ajustar el metodo de obtencion.
 
 Requiere:
-    pip install requests pandas openpyxl
+    pip install requests pandas openpyxl pywebpush
 
 Uso:
     python monitor_capufe_gn.py
-
-Se puede programar para correr cada 5-10 minutos con el Programador de
-tareas de Windows (ver ejecutar_monitor.bat incluido).
 """
 
 import json
@@ -40,32 +37,28 @@ from casetas_mexico_puebla import km_a_referencia
 
 CUENTAS = ["CAPUFE", "GN_Carreteras"]
 
-# Carpeta donde vive este script (para que funcione sin importar desde
-# donde se ejecute, ej. desde una tarea programada)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 ARCHIVO_VISTOS = os.path.join(BASE_DIR, "tweets_vistos.json")
 ARCHIVO_EXCEL = os.path.join(BASE_DIR, "eventos_mexico_puebla.xlsx")
 ARCHIVO_LOG = os.path.join(BASE_DIR, "monitor_log.txt")
 
-# JSON que lee el dashboard web (docs/data/eventos.json para GitHub Pages)
 ARCHIVO_JSON_DASHBOARD = os.path.join(BASE_DIR, "..", "docs", "data", "eventos.json")
 
-# Credenciales de Telegram (se configuran como variables de entorno /
-# secrets de GitHub Actions, nunca escritas aqui directamente)
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
-# Palabras clave para filtrar solo lo relevante al tramo Mexico-Puebla.
-# Se puede ampliar segun se detecten mas nombres de referencia del tramo.
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+PUSH_SUBSCRIPTION_JSON = os.environ.get("PUSH_SUBSCRIPTION", "")
+VAPID_CLAIMS = {"sub": "mailto:notificaciones@monitor-capufe-gn.local"}
+
 PALABRAS_CLAVE_TRAMO = [
     "mexico-puebla", "méxico-puebla", "mexico - puebla", "méxico - puebla",
     "autopista 150", "autopista (150)", "rio frio", "río frío",
     "amozoc", "chalco", "san martin texmelucan", "san martín texmelucan",
-    "ciudad mendoza",  # ajustar/ampliar segun casetas reales del tramo
+    "ciudad mendoza",
 ]
 
-# Clasificacion simple por palabras clave (se puede ampliar)
 TIPOS_EVENTO = {
     "accidente": ["accidente", "colision", "colisión", "volcadura", "choque"],
     "incendio": ["incendio", "fuego", "quema"],
@@ -86,12 +79,7 @@ HEADERS = {
 TIMEOUT_SEGUNDOS = 15
 
 
-# --------------------------------------------------------------------------
-# UTILIDADES
-# --------------------------------------------------------------------------
-
 def log(mensaje):
-    """Escribe un mensaje con timestamp a consola y a un archivo de log."""
     linea = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {mensaje}"
     print(linea)
     with open(ARCHIVO_LOG, "a", encoding="utf-8") as f:
@@ -110,19 +98,7 @@ def guardar_vistos(vistos):
         json.dump(list(vistos), f)
 
 
-# --------------------------------------------------------------------------
-# OBTENCION DE TWEETS (endpoint de sindicacion, sin login)
-# --------------------------------------------------------------------------
-
 def obtener_tweets_cuenta(handle):
-    """
-    Obtiene los tweets recientes de una cuenta publica usando el endpoint
-    de sindicacion de X (el que usa X para widgets embebidos).
-
-    Devuelve una lista de dicts: {id, texto, fecha, url}
-    Si el endpoint no responde con el formato esperado, regresa lista vacia
-    y deja un aviso claro en el log (para detectar si X cambio el formato).
-    """
     url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{handle}"
 
     try:
@@ -132,9 +108,6 @@ def obtener_tweets_cuenta(handle):
         log(f"[ERROR] No se pudo contactar el endpoint para @{handle}: {e}")
         return []
 
-    # El HTML de respuesta trae un bloque <script id="__NEXT_DATA__"> con
-    # un JSON que incluye los tweets. Si X cambia esta estructura, esta
-    # busqueda dejara de encontrar coincidencias y se avisa en el log.
     match = re.search(
         r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
         resp.text,
@@ -154,8 +127,6 @@ def obtener_tweets_cuenta(handle):
         log(f"[ERROR] No se pudo parsear el JSON de @{handle}: {e}")
         return []
 
-    # La ruta exacta dentro del JSON puede variar; se intenta de forma
-    # defensiva y se avisa si no se encuentra nada util.
     tweets_crudos = _buscar_lista_tweets(data)
 
     if not tweets_crudos:
@@ -185,11 +156,6 @@ def obtener_tweets_cuenta(handle):
 
 
 def _buscar_lista_tweets(data):
-    """
-    Busca de forma recursiva y defensiva una lista de objetos que parezcan
-    tweets dentro del JSON de __NEXT_DATA__. Esto es necesario porque la
-    ruta exacta (props.pageProps.timeline...) puede variar entre versiones.
-    """
     encontrados = []
 
     def es_tweet(obj):
@@ -211,10 +177,6 @@ def _buscar_lista_tweets(data):
     return encontrados
 
 
-# --------------------------------------------------------------------------
-# FILTRADO Y CLASIFICACION
-# --------------------------------------------------------------------------
-
 def es_relevante_tramo(texto):
     texto_normalizado = texto.lower()
     return any(palabra in texto_normalizado for palabra in PALABRAS_CLAVE_TRAMO)
@@ -229,7 +191,6 @@ def clasificar_tipo_evento(texto):
 
 
 def extraer_km(texto):
-    """Intenta extraer un numero de kilometro del texto, ej. 'km 032+200'."""
     match = re.search(r"km[.\s]*([\d]+(?:\+\d+)?)", texto, re.IGNORECASE)
     return match.group(1) if match else ""
 
@@ -238,10 +199,6 @@ def extraer_sentido(texto):
     match = re.search(r"direcci[oó]n\s+([A-Za-zÀ-ÿ\s]+?)(?:[.,]|$)", texto, re.IGNORECASE)
     return match.group(1).strip() if match else ""
 
-
-# --------------------------------------------------------------------------
-# GUARDADO EN EXCEL
-# --------------------------------------------------------------------------
 
 def guardar_eventos_excel(eventos_nuevos):
     columnas = [
@@ -261,15 +218,9 @@ def guardar_eventos_excel(eventos_nuevos):
     df_final.to_excel(ARCHIVO_EXCEL, index=False)
 
 
-# --------------------------------------------------------------------------
-# NOTIFICACIONES (Telegram)
-# --------------------------------------------------------------------------
-
 def notificar_telegram(evento):
-    """Envia una notificacion al celular via Telegram. No falla el script
-    si Telegram no esta configurado o no responde; solo lo avisa en log."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        return  # Telegram no configurado, se omite silenciosamente
+        return
 
     emoji_por_tipo = {
         "accidente": "🚨", "incendio": "🔥", "robo": "🚔",
@@ -298,13 +249,50 @@ def notificar_telegram(evento):
         log(f"[AVISO] No se pudo enviar notificacion de Telegram: {e}")
 
 
-# --------------------------------------------------------------------------
-# EXPORTACION PARA EL DASHBOARD WEB
-# --------------------------------------------------------------------------
+def notificar_push(evento):
+    """Envia una notificacion push directamente a la app instalada en el
+    celular (vía el navegador), usando el estandar Web Push + VAPID.
+    No falla el script si no esta configurado; solo lo omite."""
+    if not VAPID_PRIVATE_KEY or not PUSH_SUBSCRIPTION_JSON:
+        return
+
+    try:
+        from pywebpush import webpush, WebPushException
+    except ImportError:
+        log("[AVISO] pywebpush no esta instalado, se omite notificacion push.")
+        return
+
+    try:
+        subscription_info = json.loads(PUSH_SUBSCRIPTION_JSON)
+    except json.JSONDecodeError:
+        log("[AVISO] PUSH_SUBSCRIPTION no es JSON valido, se omite notificacion push.")
+        return
+
+    emoji_por_tipo = {
+        "accidente": "🚨", "incendio": "🔥", "robo": "🚔",
+        "manifestacion": "✊", "cierre_circulacion": "🟠",
+        "restablecimiento": "🟢", "otro": "ℹ️",
+    }
+    emoji = emoji_por_tipo.get(evento["tipo_evento"], "ℹ️")
+
+    payload = {
+        "title": f"{emoji} {evento['tipo_evento'].replace('_', ' ').upper()} · México-Puebla",
+        "body": evento["texto_original"][:180],
+        "url": evento["url"],
+    }
+
+    try:
+        webpush(
+            subscription_info=subscription_info,
+            data=json.dumps(payload),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims=dict(VAPID_CLAIMS),
+        )
+    except WebPushException as e:
+        log(f"[AVISO] No se pudo enviar notificacion push: {e}")
+
 
 def exportar_json_dashboard():
-    """Exporta todos los eventos acumulados a JSON para que el dashboard
-    web (GitHub Pages) los lea y los muestre en el celular."""
     if not os.path.exists(ARCHIVO_EXCEL):
         return
 
@@ -314,10 +302,6 @@ def exportar_json_dashboard():
     os.makedirs(os.path.dirname(ARCHIVO_JSON_DASHBOARD), exist_ok=True)
     df.to_json(ARCHIVO_JSON_DASHBOARD, orient="records", force_ascii=False, indent=2)
 
-
-# --------------------------------------------------------------------------
-# FLUJO PRINCIPAL
-# --------------------------------------------------------------------------
 
 def main():
     log("=== Iniciando corrida de monitoreo ===")
@@ -357,6 +341,7 @@ def main():
         log(f"Se detectaron {len(eventos_nuevos)} eventos nuevos relevantes a Mexico-Puebla. Guardados en {ARCHIVO_EXCEL}")
         for evento in eventos_nuevos:
             notificar_telegram(evento)
+            notificar_push(evento)
     else:
         log("No se detectaron eventos nuevos relevantes en esta corrida.")
 
