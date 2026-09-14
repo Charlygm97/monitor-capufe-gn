@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Eventos México-Puebla</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1115">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
   :root {
     --bg: #0f1115;
@@ -160,6 +164,10 @@ async function cargarEventos() {
 
 cargarEventos();
 setInterval(cargarEventos, 60000); // se actualiza solo cada minuto
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js").catch(() => {});
+}
 </script>
 
 </body>
