@@ -4,7 +4,7 @@ on:
   schedule:
     # Corre cada 10 minutos. GitHub puede retrasar el disparo unos minutos
     # en horas de mucha carga (limitación normal de Actions, no del script).
-    - cron: "*/10 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch: {}  # permite correrlo manualmente desde la pestaña Actions
 
 permissions:
