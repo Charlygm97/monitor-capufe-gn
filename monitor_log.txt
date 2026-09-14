@@ -30,3 +30,9 @@
 [2026-09-14 19:31:36] No se detectaron eventos nuevos relevantes en esta corrida.
 [2026-09-14 19:31:36] === Corrida finalizada ===
 
+[2026-09-14 22:43:42] === Iniciando corrida de monitoreo ===
+[2026-09-14 22:43:43] @CAPUFE: 101 tweets obtenidos
+[2026-09-14 22:43:43] @GN_Carreteras: 100 tweets obtenidos
+[2026-09-14 22:43:43] Se detectaron 15 eventos nuevos relevantes a Mexico-Puebla. Guardados en /home/runner/work/monitor-capufe-gn/monitor-capufe-gn/eventos_mexico_puebla.xlsx
+[2026-09-14 22:43:52] === Corrida finalizada ===
+
