@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eventos México-Puebla</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #1a1d24;
+    --border: #2a2e37;
+    --text: #e8eaed;
+    --muted: #8a8f98;
+    --accent: #4f9eff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+    padding-bottom: 40px;
+  }
+  header {
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: 20px;
+    margin: 0 0 4px 0;
+  }
+  .subtitulo {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .actualizado {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 8px;
+  }
+  .evento {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .evento-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .tipo {
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cuenta {
+    font-size: 11px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.06);
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+  .meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .texto {
+    font-size: 14px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .link {
+    font-size: 12px;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .vacio {
+    color: var(--muted);
+    text-align: center;
+    padding: 40px 0;
+    font-size: 14px;
+  }
+  .badge-accidente { color: #ff6b6b; }
+  .badge-incendio { color: #ff9f43; }
+  .badge-robo { color: #feca57; }
+  .badge-manifestacion { color: #a29bfe; }
+  .badge-cierre_circulacion { color: #ff9f43; }
+  .badge-restablecimiento { color: #1dd1a1; }
+  .badge-otro { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🛣️ Eventos México-Puebla</h1>
+  <div class="subtitulo">CAPUFE + Guardia Nacional Carreteras</div>
+  <div class="actualizado" id="actualizado"></div>
+</header>
+
+<div id="lista"></div>
+
+<script>
+const EMOJIS = {
+  accidente: "🚨",
+  incendio: "🔥",
+  robo: "🚔",
+  manifestacion: "✊",
+  cierre_circulacion: "🟠",
+  restablecimiento: "🟢",
+  otro: "ℹ️",
+};
+
+function nombreTipo(tipo) {
+  return tipo.replaceAll("_", " ").replace(/^\w/, c => c.toUpperCase());
+}
+
+async function cargarEventos() {
+  const contenedor = document.getElementById("lista");
+  try {
+    const resp = await fetch("data/eventos.json?_=" + Date.now());
+    const eventos = await resp.json();
+
+    document.getElementById("actualizado").textContent =
+      "Actualizado: " + new Date().toLocaleString("es-MX");
+
+    if (!eventos.length) {
+      contenedor.innerHTML = '<div class="vacio">Sin eventos detectados todavía.</div>';
+      return;
+    }
+
+    contenedor.innerHTML = eventos.map(ev => `
+      <div class="evento">
+        <div class="evento-top">
+          <div class="tipo badge-${ev.tipo_evento}">
+            ${EMOJIS[ev.tipo_evento] || "ℹ️"} ${nombreTipo(ev.tipo_evento)}
+          </div>
+          <div class="cuenta">@${ev.cuenta}</div>
+        </div>
+        <div class="meta">
+          ${ev.fecha_deteccion}
+          ${ev.km ? " · km " + ev.km : ""}
+          ${ev.sentido ? " · dirección " + ev.sentido : ""}
+        </div>
+        ${ev.referencia_cercana ? `<div class="meta">📍 ${ev.referencia_cercana}</div>` : ""}
+        <div class="texto">${ev.texto_original}</div>
+        <a class="link" href="${ev.url}" target="_blank">Ver publicación original →</a>
+        ${ev.lat_aprox ? `<a class="link" style="margin-left:12px" href="https://maps.google.com/?q=${ev.lat_aprox},${ev.lon_aprox}" target="_blank">Ver en mapa →</a>` : ""}
+      </div>
+    `).join("");
+  } catch (e) {
+    contenedor.innerHTML = '<div class="vacio">No se pudo cargar la información todavía.</div>';
+  }
+}
+
+cargarEventos();
+setInterval(cargarEventos, 60000); // se actualiza solo cada minuto
+</script>
+
+</body>
+</html>
