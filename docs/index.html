@@ -105,7 +105,7 @@
   <h1>🛣️ Eventos México-Puebla</h1>
   <div class="subtitulo">CAPUFE + Guardia Nacional Carreteras</div>
   <div class="actualizado" id="actualizado"></div>
-  <button id="btn-notif" onclick="activarNotificaciones()" style="margin-top:12px; background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:14px; font-weight:600;">🔔 Activar notificaciones</button>
+  <button id="btn-notif" onclick="toggleNotificaciones()" style="margin-top:12px; background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:14px; font-weight:600;">🔔 Activar notificaciones</button>
   <div id="sub-container" style="display:none; margin-top:14px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px;">
     <div style="font-size:13px; margin-bottom:8px;">Copia este texto y pégalo donde Claude te indique (solo se hace una vez):</div>
     <textarea id="sub-output" readonly style="width:100%; height:100px; background:#000; color:var(--text); border:1px solid var(--border); border-radius:6px; font-size:11px; padding:8px;"></textarea>
@@ -187,30 +187,64 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
-async function activarNotificaciones() {
+async function toggleNotificaciones() {
   try {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       alert("Este navegador no soporta notificaciones push.");
       return;
     }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await desactivarNotificaciones();
+    } else {
+      await activarNotificaciones();
+    }
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
+
+async function activarNotificaciones() {
+  try {
     const permiso = await Notification.requestPermission();
     if (permiso !== "granted") {
       alert("No se otorgó permiso de notificaciones.");
       return;
     }
     const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      });
-    }
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
     document.getElementById("sub-output").value = JSON.stringify(sub);
     document.getElementById("sub-container").style.display = "block";
-    document.getElementById("btn-notif").textContent = "✅ Notificaciones activadas";
+    await actualizarBotonNotif();
   } catch (e) {
     alert("Error activando notificaciones: " + e.message);
+  }
+}
+
+async function desactivarNotificaciones() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await sub.unsubscribe();
+    }
+    document.getElementById("sub-container").style.display = "none";
+    document.getElementById("sub-output").value = "";
+    await actualizarBotonNotif();
+    alert(
+      "Notificaciones desactivadas en este dispositivo.\n\n" +
+      "Nota: si ya habías guardado la suscripción como secret en GitHub, " +
+      "esa copia sigue ahí. El sistema puede seguir intentando enviarle " +
+      "notificaciones (fallará silenciosamente), pero ya no te llegarán " +
+      "aquí. Para quitarla por completo del servidor, borra el secret " +
+      "PUSH_SUBSCRIPTION en GitHub."
+    );
+  } catch (e) {
+    alert("Error desactivando notificaciones: " + e.message);
   }
 }
 
@@ -220,6 +254,25 @@ function copiarSuscripcion() {
   document.execCommand("copy");
   alert("Copiado. Ahora pégalo donde Claude te indique.");
 }
+
+// Al cargar la app, revisa si ya existe una suscripcion activa y ajusta
+// el texto del boton (activar/desactivar) en consecuencia
+async function actualizarBotonNotif() {
+  const btn = document.getElementById("btn-notif");
+  if (!btn) return;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    btn.style.display = "none";
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    btn.textContent = sub ? "🔕 Desactivar notificaciones" : "🔔 Activar notificaciones";
+  } catch (e) {
+    // si falla la revisión, se deja el texto por default
+  }
+}
+actualizarBotonNotif();
 </script>
 
 </body>
