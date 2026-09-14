@@ -105,6 +105,12 @@
   <h1>🛣️ Eventos México-Puebla</h1>
   <div class="subtitulo">CAPUFE + Guardia Nacional Carreteras</div>
   <div class="actualizado" id="actualizado"></div>
+  <button id="btn-notif" onclick="activarNotificaciones()" style="margin-top:12px; background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:14px; font-weight:600;">🔔 Activar notificaciones</button>
+  <div id="sub-container" style="display:none; margin-top:14px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px;">
+    <div style="font-size:13px; margin-bottom:8px;">Copia este texto y pégalo donde Claude te indique (solo se hace una vez):</div>
+    <textarea id="sub-output" readonly style="width:100%; height:100px; background:#000; color:var(--text); border:1px solid var(--border); border-radius:6px; font-size:11px; padding:8px;"></textarea>
+    <button onclick="copiarSuscripcion()" style="margin-top:8px; background:var(--accent); color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:13px;">Copiar</button>
+  </div>
 </header>
 
 <div id="lista"></div>
@@ -167,6 +173,52 @@ setInterval(cargarEventos, 60000); // se actualiza solo cada minuto
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js").catch(() => {});
+}
+
+// --- Notificaciones push ---
+const VAPID_PUBLIC_KEY = "BGGpoK7q3u0RwYD5U07M9eZyzpuDeOueAeqwHN_crIg1g8Uz1SvdcroocTIckCcHyux1_CQB8OuZi-y_h0gvQdk";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+async function activarNotificaciones() {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      alert("Este navegador no soporta notificaciones push.");
+      return;
+    }
+    const permiso = await Notification.requestPermission();
+    if (permiso !== "granted") {
+      alert("No se otorgó permiso de notificaciones.");
+      return;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+    document.getElementById("sub-output").value = JSON.stringify(sub);
+    document.getElementById("sub-container").style.display = "block";
+    document.getElementById("btn-notif").textContent = "✅ Notificaciones activadas";
+  } catch (e) {
+    alert("Error activando notificaciones: " + e.message);
+  }
+}
+
+function copiarSuscripcion() {
+  const txt = document.getElementById("sub-output");
+  txt.select();
+  document.execCommand("copy");
+  alert("Copiado. Ahora pégalo donde Claude te indique.");
 }
 </script>
 
