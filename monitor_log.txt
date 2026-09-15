@@ -36,3 +36,11 @@
 [2026-09-14 22:43:43] Se detectaron 15 eventos nuevos relevantes a Mexico-Puebla. Guardados en /home/runner/work/monitor-capufe-gn/monitor-capufe-gn/eventos_mexico_puebla.xlsx
 [2026-09-14 22:43:52] === Corrida finalizada ===
 
+[2026-09-15 00:59:26] === Iniciando corrida de monitoreo ===
+[2026-09-15 00:59:26] [ERROR] No se pudo contactar el endpoint para @CAPUFE: 429 Client Error: Too Many Requests for url: https://syndication.twitter.com/srv/timeline-profile/screen-name/CAPUFE
+[2026-09-15 00:59:26] @CAPUFE: 0 tweets obtenidos
+[2026-09-15 00:59:27] [ERROR] No se pudo contactar el endpoint para @GN_Carreteras: 429 Client Error: Too Many Requests for url: https://syndication.twitter.com/srv/timeline-profile/screen-name/GN_Carreteras
+[2026-09-15 00:59:27] @GN_Carreteras: 0 tweets obtenidos
+[2026-09-15 00:59:27] No se detectaron eventos nuevos relevantes en esta corrida.
+[2026-09-15 00:59:27] === Corrida finalizada ===
+
