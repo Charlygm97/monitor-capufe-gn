@@ -24,6 +24,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 from datetime import datetime
 
 import pandas as pd
@@ -52,10 +53,17 @@ VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 PUSH_SUBSCRIPTION_JSON = os.environ.get("PUSH_SUBSCRIPTION", "")
 VAPID_CLAIMS = {"sub": "mailto:notificaciones@monitor-capufe-gn.local"}
 
+# Palabras clave para filtrar solo lo relevante al tramo Mexico-Puebla.
+# Se comparan de forma normalizada (sin acentos, espacios ni guiones), asi
+# que "Mexico-Puebla", "Mexico Puebla" y "#AutMexicoPuebla" hacen match
+# igual. Se puede ampliar segun se detecten mas nombres de referencia.
 PALABRAS_CLAVE_TRAMO = [
-    "mexico-puebla", "méxico-puebla", "mexico - puebla", "méxico - puebla",
-    "autopista 150", "autopista (150)", "rio frio", "río frío",
-    "amozoc", "chalco", "san martin texmelucan", "san martín texmelucan",
+    "mexico-puebla",
+    "autopista 150",
+    "rio frio",
+    "amozoc",
+    "chalco",
+    "san martin texmelucan",
     "ciudad mendoza",
 ]
 
@@ -177,9 +185,23 @@ def _buscar_lista_tweets(data):
     return encontrados
 
 
+def _normalizar(texto):
+    """Quita acentos, mayusculas, espacios y guiones para poder comparar
+    'Mexico-Puebla', 'Mexico Puebla' y '#AutMexicoPuebla' como si fueran
+    lo mismo."""
+    texto = texto.lower()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    texto = re.sub(r"[^a-z0-9]", "", texto)
+    return texto
+
+
+PALABRAS_CLAVE_NORMALIZADAS = [_normalizar(p) for p in PALABRAS_CLAVE_TRAMO]
+
+
 def es_relevante_tramo(texto):
-    texto_normalizado = texto.lower()
-    return any(palabra in texto_normalizado for palabra in PALABRAS_CLAVE_TRAMO)
+    texto_normalizado = _normalizar(texto)
+    return any(palabra in texto_normalizado for palabra in PALABRAS_CLAVE_NORMALIZADAS)
 
 
 def clasificar_tipo_evento(texto):
