@@ -1029,3 +1029,11 @@
 [2026-10-06 23:16:48] No se detectaron eventos nuevos relevantes en esta corrida.
 [2026-10-06 23:16:48] === Corrida finalizada ===
 
+[2026-10-07 02:35:08] === Iniciando corrida de monitoreo ===
+[2026-10-07 02:35:08] [ERROR] No se pudo contactar el endpoint para @CAPUFE: 429 Client Error: Too Many Requests for url: https://syndication.twitter.com/srv/timeline-profile/screen-name/CAPUFE
+[2026-10-07 02:35:08] @CAPUFE: 0 tweets obtenidos
+[2026-10-07 02:35:08] [ERROR] No se pudo contactar el endpoint para @GN_Carreteras: 429 Client Error: Too Many Requests for url: https://syndication.twitter.com/srv/timeline-profile/screen-name/GN_Carreteras
+[2026-10-07 02:35:08] @GN_Carreteras: 0 tweets obtenidos
+[2026-10-07 02:35:08] No se detectaron eventos nuevos relevantes en esta corrida.
+[2026-10-07 02:35:08] === Corrida finalizada ===
+
