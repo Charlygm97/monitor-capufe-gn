@@ -1284,3 +1284,9 @@
 [2026-10-14 10:13:14] No se detectaron eventos nuevos relevantes en esta corrida.
 [2026-10-14 10:13:15] === Corrida finalizada ===
 
+[2026-10-14 15:11:13] === Iniciando corrida de monitoreo ===
+[2026-10-14 15:11:14] @CAPUFE: 101 tweets obtenidos
+[2026-10-14 15:11:14] @GN_Carreteras: 100 tweets obtenidos
+[2026-10-14 15:11:14] No se detectaron eventos nuevos relevantes en esta corrida.
+[2026-10-14 15:11:14] === Corrida finalizada ===
+
